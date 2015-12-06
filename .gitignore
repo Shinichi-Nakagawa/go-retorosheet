@@ -23,3 +23,10 @@ _testmain.go
 *.test
 *.prof
 *.zip
+
+# Retrosheet
+*.EV*
+*.ROS
+*.csv
+GL*.TXT
+TEAM*
