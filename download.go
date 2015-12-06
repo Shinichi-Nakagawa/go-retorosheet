@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"path"
 	"flag"
+	"sync"
 )
 
 
@@ -20,10 +21,7 @@ func IsExist(filename string) bool {
 
 func MakeWorkDirectory(dirname string) {
 	if IsExist(dirname) {
-		fmt.Println("Directory delete")
-		if err := os.RemoveAll(dirname); err != nil {
-			fmt.Println(err)
-		}
+		return
 	}
 	os.MkdirAll(dirname, 0777)
 }
@@ -58,18 +56,12 @@ func DownloadArchives(url string, dirname string) {
 }
 
 
-func GetEventsFile(year int, dirname string) {
-	var url string = fmt.Sprintf("http://www.retrosheet.org/events/%deve.zip", year)
-	// file Download
-	DownloadArchives(url, dirname)
-	return
+func GetEventsFileUrl(year int) string {
+	return fmt.Sprintf("http://www.retrosheet.org/events/%deve.zip", year)
 }
 
-func GetGameLogs(year int, dirname string) {
-	var url string = fmt.Sprintf("http://www.retrosheet.org/gamelogs/gl%d.zip", year)
-	// file Download
-	DownloadArchives(url, dirname)
-	return
+func GetGameLogsUrl(year int) string {
+	return fmt.Sprintf("http://www.retrosheet.org/gamelogs/gl%d.zip", year)
 }
 
 func main() {
@@ -82,11 +74,23 @@ func main() {
 	var dirname string = "files"
 	MakeWorkDirectory(dirname)
 
-	// Events/Game Log download
+	wait := new(sync.WaitGroup)
+	// Generate URL
+	urls := []string{}
 	for year := *fromYear; year < *toYear + 1; year++ {
-		fmt.Println(fmt.Sprintf("Get Retrosheet Archives(%d Season)", year))
-		GetEventsFile(year, dirname)
-		GetGameLogs(year, dirname)
+		urls = append(urls, GetEventsFileUrl(year))
+		wait.Add(1)
+		urls = append(urls, GetGameLogsUrl(year))
+		wait.Add(1)
 	}
+
+	// Download files
+	for _, url := range urls {
+		go func(url string) {
+			DownloadArchives(url, dirname)
+			wait.Done()
+		}(url)
+	}
+	wait.Wait()
 
 }
